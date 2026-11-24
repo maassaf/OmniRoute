@@ -309,6 +309,7 @@ import {
   getTokenLimit,
   getComboTargetTokenLimit,
   resolveComboContextLimit,
+  resolveTokenLimit,
 } from "../services/contextManager.ts";
 import { resolveBackgroundTaskRedirect } from "./chatCore/backgroundRedirect.ts";
 import { resolveCopilotAuto } from "./chatCore/copilotAutoModel.ts";
@@ -1371,7 +1372,9 @@ async function handleChatCoreInner({
   // combo-resolved override survives to the final enforceOutputTokenBudget() call
   // further down — see #8378 (context limit resolved by the combo was silently
   // discarded because it only existed inside this `if` block).
-  let contextLimit = getTokenLimit(provider, effectiveModel);
+  const initialTokenLimit = resolveTokenLimit(provider, effectiveModel);
+  let contextLimit = initialTokenLimit.limit;
+  let contextLimitSpecific = initialTokenLimit.specific;
   const contextWindowChecksDisabled = areContextWindowChecksDisabled();
   const effectiveInputCap = contextWindowChecksDisabled
     ? null
@@ -2029,6 +2032,7 @@ async function handleChatCoreInner({
           comboContextLength,
         });
         contextLimit = resolved.limit;
+        contextLimitSpecific = resolved.source !== "fallback";
         log?.info?.(
           "CONTEXT",
           `Combo context limit: ${resolved.limit} (source=${resolved.source})`
@@ -2206,6 +2210,7 @@ async function handleChatCoreInner({
     body: body as Record<string, unknown>,
     finalEstimatedInputTokens,
     finalContextLimit,
+    contextLimitSpecific,
     contextWindowChecksDisabled,
     modelOutputCap,
     effectiveInputCap,
